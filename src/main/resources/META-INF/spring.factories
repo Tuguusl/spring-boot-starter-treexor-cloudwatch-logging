@@ -1,0 +1,2 @@
+# This file is used to enabled Spring Boot autoconfiguration on dependency presence.
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=com.intapp.platform.logging.CloudWatchLoggingAutoConfiguration
