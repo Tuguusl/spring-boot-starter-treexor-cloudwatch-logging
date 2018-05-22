@@ -1,36 +1,71 @@
-group 'com.intapp.platform'
-version '0.8'
+group   getGroup()
+version getVersion(1)
+
+static def getGroup() {
+    'com.txrlabs.microservices'
+}
+
+static def getVersion(mayor) {
+    if (System.getenv('BUILD_NUMBER'))
+        if (System.getenv('GIT_BRANCH') == 'origin/master')
+            "$mayor.1.${System.getenv('BUILD_NUMBER')}"
+        else
+            "$mayor.0.${System.getenv('BUILD_NUMBER')}-SNAPSHOT"
+    else
+        '0.0.0-SNAPSHOT'
+}
+
+new File('version').withWriter { out ->
+    out.print project.version
+}
+
+new File("version-${project.name}").withWriter { out ->
+    out.print project.version
+}
 
 buildscript {
-    ext {
-        springBootVersion = '1.5.3.RELEASE'
-        artifactoryPluginVersion = '4.4.17'
-    }
 
     repositories {
+        mavenLocal()
         mavenCentral()
-        maven {
-            url 'https://plugins.gradle.org/m2/'
-        }
+        maven { url "https://plugins.gradle.org/m2/" }
     }
 
     dependencies {
-        classpath "org.springframework.boot:spring-boot-gradle-plugin:$springBootVersion"
-        classpath "org.jfrog.buildinfo:build-info-extractor-gradle:$artifactoryPluginVersion"
+        classpath "org.springframework.boot:spring-boot-gradle-plugin:1.5.6.RELEASE"
+        classpath "io.franzbecker:gradle-lombok:1.14"
     }
 }
 
+apply plugin: 'groovy'
 apply plugin: 'java'
-apply plugin: "org.springframework.boot"
-apply plugin: 'maven-publish'
-apply plugin: 'com.jfrog.artifactory'
+
+test {
+    ignoreFailures = true
+}
 
 sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+repositories {
+
+    mavenCentral()
+
+    maven { url 'https://repo.spring.io/milestone' }
+
+    maven {
+        url 'https://nexus.tguhost.com/content/repositories/releases'
+        credentials {
+            username "$mavenUser"
+            password "$mavenPassword"
+        }
+    }
+}
 
 ext {
     awsCloudwatchVersion = '1.11.18'
-    guavaVersion = '21.0'
-    lombokVersion = '1.16.16'
+    guavaVersion         = '21.0'
+    lombokVersion        = '1.16.20'
 }
 
 repositories {
@@ -38,45 +73,67 @@ repositories {
 }
 
 dependencies {
-    compile group: 'org.springframework.boot', name: 'spring-boot-starter'
 
     compile group: 'com.amazonaws', name: 'aws-java-sdk-cloudwatch', version: "$awsCloudwatchVersion"
-    compile group: 'com.amazonaws', name: 'aws-java-sdk-logs', version: "$awsCloudwatchVersion"
+    compile group: 'com.amazonaws', name: 'aws-java-sdk-logs',       version: "$awsCloudwatchVersion"
 
-    compile group: 'com.google.guava', name: 'guava', version: "$guavaVersion"
     compileOnly group: 'org.projectlombok', name: 'lombok', version: "$lombokVersion"
+
+    compileOnly group: 'org.springframework.boot', name: 'spring-boot-starter'
+    compileOnly group: 'com.google.guava', name: 'guava', version: "$guavaVersion"
+
+    testCompile group: 'org.springframework.boot', name: 'spring-boot-starter'
+    testCompile group: 'com.google.guava', name: 'guava', version: "$guavaVersion"
 
     testCompile 'org.springframework.boot:spring-boot-starter-test'
 }
 
-//publishing {
-//    publications {
-//        loggingArtifact(MavenPublication) {
-//            from components.java
-//        }
-//    }
-//}
+apply plugin: "io.franzbecker.gradle-lombok"
 
-//
-//artifactory {
-//    contextUrl = "${artifactory_contextUrl}"   //The base Artifactory URL if not overridden by the publisher/resolver
-//    publish {
-//        repository {
-//            repoKey = "https://nexus.tguhost.com/content/repositories/releases"
-//            username = "${mavenUser}"
-//            password = "${mavenPassword}"
-//            maven = true
-//        }
-//        defaults {
-//            // Reference to Gradle publications defined in the build script.
-//            publications('loggingArtifact')
-//            publishArtifacts = true
-//            // Publish generated POM files to Artifactory (true by default)
-//            publishPom = true
-//        }
-//    }
-//    resolve {
-//        repoKey = 'gradle-dev-local'
-//    }
-//}
+lombok { // optional: values below are the defaults
+    version = "1.16.20"
+    sha256 = "c5178b18caaa1a15e17b99ba5e4023d2de2ebc18b58cde0f5a04ca4b31c10e6d"
+}
 
+apply plugin: 'org.springframework.boot'
+
+bootRepackage {
+    enabled = false
+}
+
+apply plugin: 'maven-publish'
+
+task sourcesJar(type: Jar, dependsOn: classes) {
+    classifier = 'sources'
+    from sourceSets.main.allJava
+}
+
+task javadocJar(type: Jar, dependsOn: javadoc) {
+    classifier = 'javadoc'
+    from javadoc.destinationDir
+}
+
+artifacts {
+    archives sourcesJar
+}
+
+publishing {
+    repositories {
+        maven {
+            credentials {
+                username "$mavenUser"
+                password "$mavenPassword"
+            }
+            url (System.getenv('GIT_BRANCH') == 'origin/master' ? 'https://nexus.tguhost.com/content/repositories/releases/' : 'https://nexus.tguhost.com/content/repositories/snapshots/')
+        }
+    }
+
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+            artifact sourcesJar {
+                classifier 'sources'
+            }
+        }
+    }
+}
