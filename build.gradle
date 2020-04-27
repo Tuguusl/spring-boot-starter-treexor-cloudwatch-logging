@@ -39,6 +39,7 @@ buildscript {
 
 apply plugin: 'groovy'
 apply plugin: 'java'
+apply plugin: 'maven'
 
 test {
     ignoreFailures = true
@@ -53,13 +54,13 @@ repositories {
 
     maven { url 'https://repo.spring.io/milestone' }
 
-    maven {
+    /*maven {
         url 'https://nexus.tguhost.com/content/repositories/releases'
         credentials {
             username "$mavenUser"
             password "$mavenPassword"
         }
-    }
+    }*/
 }
 
 ext {
@@ -118,7 +119,7 @@ artifacts {
 }
 
 publishing {
-    repositories {
+    /*repositories {
         maven {
             credentials {
                 username "$mavenUser"
@@ -126,7 +127,7 @@ publishing {
             }
             url (System.getenv('GIT_BRANCH') == 'origin/master' ? 'https://nexus.tguhost.com/content/repositories/releases/' : 'https://nexus.tguhost.com/content/repositories/snapshots/')
         }
-    }
+    }*/
 
     publications {
         mavenJava(MavenPublication) {
